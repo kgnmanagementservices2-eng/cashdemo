@@ -460,8 +460,8 @@ exports.createEmployee = async (req, res, next) => {
         store_id,
         req.user.company_id,
         full_name.trim(),
-        employee_code?.trim(),
-        ntid?.trim(),
+        employee_code?.trim() || null, // 🔥 Fallback to null
+        ntid?.trim() || null,          // 🔥 Fallback to null
       ],
     );
     res.status(201).json(rows[0]);
@@ -478,11 +478,11 @@ exports.updateEmployee = async (req, res, next) => {
        employee_code = COALESCE($3, employee_code), ntid = COALESCE($4, ntid), is_active = COALESCE($5, is_active)
        WHERE id = $6 AND company_id = $7 RETURNING *`,
       [
-        store_id,
-        full_name?.trim(),
-        employee_code?.trim(),
-        ntid?.trim(),
-        is_active,
+        store_id || null,
+        full_name?.trim() || null,
+        employee_code?.trim() || null, // 🔥 Fallback to null
+        ntid?.trim() || null,          // 🔥 Fallback to null
+        is_active !== undefined ? is_active : null, // Safely handle boolean
         req.params.id,
         req.user.company_id,
       ],
