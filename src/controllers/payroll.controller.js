@@ -7,7 +7,6 @@ const safeNum = (val) => {
   return isNaN(n) ? 0 : n;
 };
 
-// --- 1. GET ALL WITH PAGINATION, GRAND TOTALS, & SEARCH ---
 exports.getPayroll = async (req, res, next) => {
   try {
     const companyId = req.user.company_id; // 🔒 Tenant Isolation
@@ -105,7 +104,8 @@ exports.getPayroll = async (req, res, next) => {
     const countSql = `
       SELECT COUNT(*) as total_records, 
         COALESCE(SUM(p.net_final_pay), 0) as total_amount,
-        ARRAY_AGG(DISTINCT TO_CHAR(p.date, 'YYYY-MM-DD')) as available_dates
+        ARRAY_AGG(DISTINCT TO_CHAR(p.date, 'YYYY-MM-DD')) as available_dates,
+        ARRAY_AGG(DISTINCT p.date_period) as available_date_periods -- 🔥 THE FIX: Aggregate all date periods across the DB
       FROM payroll_expenses p
       JOIN markets m ON p.market_id = m.id
       JOIN stores s ON p.store_id = s.id
@@ -117,6 +117,11 @@ exports.getPayroll = async (req, res, next) => {
     const totalRecords = parseInt(countRows[0].total_records);
     const grandTotalAmount = parseFloat(countRows[0].total_amount);
     const availableDates = (countRows[0].available_dates || [])
+      .filter(Boolean)
+      .sort();
+
+    // 🔥 THE FIX: Extract and sort the available date periods
+    const availableDatePeriods = (countRows[0].available_date_periods || [])
       .filter(Boolean)
       .sort();
 
@@ -138,7 +143,11 @@ exports.getPayroll = async (req, res, next) => {
 
     return res.json({
       data: rows,
-      summary: { totalAmount: grandTotalAmount, availableDates },
+      summary: {
+        totalAmount: grandTotalAmount,
+        availableDates,
+        availableDatePeriods, // 🔥 THE FIX: Return the master list to the frontend
+      },
       pagination: {
         total: totalRecords,
         page,
