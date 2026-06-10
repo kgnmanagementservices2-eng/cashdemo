@@ -380,7 +380,17 @@ exports.markPayrollPaid = async (req, res, next) => {
 exports.updatePayrollExpense = async (req, res, next) => {
   try {
     const payload = req.body;
-    const marketId = parseInt(payload.market_id || payload.market, 10);
+
+    // 🛡️ THE FIX: Safely parse IDs to return NULL instead of NaN
+    const parseId = (val) => {
+      if (val === null || val === undefined || val === "") return null;
+      const parsed = parseInt(val, 10);
+      return isNaN(parsed) ? null : parsed;
+    };
+
+    const marketId = parseId(payload.market_id || payload.market);
+    const storeId = parseId(payload.store_id || payload.store);
+    const employeeId = parseId(payload.employee_id);
 
     if (
       req.user.role === ROLES.MARKET_MANAGER &&
@@ -409,11 +419,11 @@ exports.updatePayrollExpense = async (req, res, next) => {
     const values = [
       payload.date,
       marketId,
-      parseInt(payload.store_id || payload.store, 10),
+      storeId, // Safely parsed ID
       payload.category,
       safeNum(payload.amount),
       payload.notes || "",
-      parseInt(payload.employee_id, 10),
+      employeeId, // Safely parsed ID
       payload.date_period,
       payload.pay_type,
       safeNum(payload.pay_rate),
@@ -453,7 +463,6 @@ exports.updatePayrollExpense = async (req, res, next) => {
     next(e);
   }
 };
-
 // Add this inside src/controllers/payroll.controller.js
 
 exports.bulkCreatePayroll = async (req, res, next) => {
